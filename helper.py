@@ -1,63 +1,141 @@
 from manim import *
 
 
-class Grid(VGroup):
+class Array(VGroup):
     def __init__(
         self,
-        width=7,
-        height=6,
         data=None,
-        fs=24,
-        hbuff=0,
-        vbuff=0,
-        color=BLACK,
-        opacity=1,
-        stroke=WHITE,
+        dir_right=True,
+        cell_width=0.9,
+        cell_height=0.7,
+        cell_color=BLACK,
+        cell_opacity=1,
+        cell_stroke_color=WHITE,
+        cell_stroke_width=1,
+        index=True,
+        index_up=True,
+        index_from=0,
+        index_step=1,
+        fs=20,
+        buff=0,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        data = data or [[" "]]
-
-        self.rows = len(data)
-        self.cols = len(data[0])
+        self.data = data or [" "]
+        self.len = len(self.data)
         self.fs = fs
-        self.grid = VGroup()
+        self.index_fs = fs * 0.7
+        self.buff = buff
 
-        for drow in data:
-            grid_row = VGroup()
-            for cell in drow:
-                rect = Rectangle(
-                    width=width / self.cols,
-                    height=height / self.rows,
-                    color=color,
-                    fill_opacity=opacity,
-                    stroke_color=stroke,
+        self.cell_width = cell_width
+        self.cell_height = cell_height
+        self.cell_color = cell_color
+        self.cell_opacity = cell_opacity
+        self.cell_stroke_color = cell_stroke_color
+        self.cell_stroke_width = cell_stroke_width
+
+        self.index = index
+        self.index_from = index_from
+        self.index_step = index_step
+
+        self.dir_right = RIGHT if dir_right else UP
+
+        if dir_right:
+            self.index_up = UP if index_up else DOWN
+        else:
+            self.index_up = RIGHT if index_up else LEFT
+
+        self.cells = self.create_cells(self.data)
+        self.indices = self.create_indices()
+
+        if index:
+            self.array = VGroup(self.cells, self.indices)
+        else:
+            self.array = VGroup(self.cells)
+
+        self.add(self.array)
+
+    def create_cells(self, values):
+        cells = VGroup()
+        for value in values:
+            rect = Rectangle(
+                width=self.cell_width,
+                height=self.cell_height,
+                color=self.cell_color,
+                fill_opacity=self.cell_opacity,
+                stroke_color=self.cell_stroke_color,
+                stroke_width=self.cell_stroke_width,
+            )
+            label = Text(str(value), font_size=self.fs, z_index=1).move_to(
+                rect.get_center()
+            )
+            cells.add(VGroup(rect, label))
+        cells.arrange(self.dir_right, buff=self.buff)
+        return cells
+
+    def create_indices(self):
+        indices = range(
+            self.index_from,
+            self.index_from + self.len * self.index_step,
+            self.index_step,
+        )
+        return VGroup(
+            *[
+                Text(str(index), font_size=self.index_fs).next_to(
+                    self.cells[idx][0], self.index_up
                 )
-                label = Text(str(cell), font_size=fs, z_index=1).move_to(
-                    rect.get_center()
-                )
-                grid_row.add(VGroup(rect, label))
-            grid_row.arrange(RIGHT, buff=hbuff)
-            self.grid.add(grid_row)
-        self.grid.arrange(DOWN, buff=vbuff)
+                for idx, index in enumerate(indices)
+            ]
+        )
 
-        self.add(self.grid)
+    def toggle_indices(self, scene):
+        self.index = not self.index
+        if self.index:
+            for mob in self.indices:
+                scene.remove(mob)
+            self.indices = self.create_indices()
+            scene.add(self.indices)
+        else:
+            for mob in self.indices:
+                scene.remove(mob)
 
-    def get_cell(self, row, col):
-        return self.grid[row][col]
+    def get_cell_item(self, *cells, item=None):
+        if item not in {"group", "cell", "rect", "label", "index"}:
+            item = "group"
 
-    def get_cell_rect(self, row, col):
-        return self.get_cell(row, col)[0]
+        if item == "group" and not self.index:
+            item = "cell"
 
-    def get_cell_label(self, row, col):
-        return self.get_cell(row, col)[1]
+        if item == "group":
+            return VGroup(
+                *(VGroup(self.cells[cell], self.indices[cell]) for cell in cells)
+            )
+        elif item == "cell":
+            return VGroup(*[self.cells[cell] for cell in cells])
+        elif item == "rect":
+            return VGroup(*[self.cells[cell][0] for cell in cells])
+        elif item == "label":
+            return VGroup(*[self.cells[cell][1] for cell in cells])
+        elif item == "index" and self.index:
+            return VGroup(*[self.indices[cell] for cell in cells])
 
-    def get_row(self, row):
-        return VGroup(self.get_cell(row, col) for col in range(self.cols))
+        return VGroup()
 
-    def get_col(self, col):
-        return VGroup(self.get_cell(row, col) for row in range(self.rows))
+    def get_group(self, cell):
+        return self.get_cell_item(cell)[0]
+
+    def get_cell(self, cell):
+        return self.get_cell_item(cell, item="cell")[0]
+
+    def get_rect(self, cell):
+        return self.get_cell_item(cell, item="rect")[0]
+
+    def get_label(self, cell):
+        return self.get_cell_item(cell, item="label")[0]
+
+    def get_index(self, cell):
+        return self.get_cell_item(cell, item="index")[0]
 
     def update_cell(
         self,
@@ -73,18 +151,16 @@ class Grid(VGroup):
         labels += [fill] * (len(cells) - len(labels))
 
         animations = []
-        cellgroup = []
-
-        for (row, col), label in zip(cells, labels):
-            cell = self.get_cell(row, col)
-            old_label = self.get_cell_label(row, col)
-            new_label = Text(str(label), font_size=self.fs, z_index=1).move_to(
-                self.get_cell_rect(row, col).get_center()
+        cellgroups = []
+        for cell, label in zip(cells, labels):
+            oldval = self.get_label(cell)
+            newval = Text(str(label), font_size=self.fs, z_index=1).move_to(
+                self.get_rect(cell).get_center()
             )
 
-            cellgroup.append((cell, old_label, new_label))
+            cellgroups.append((cell, newval))
             if animate:
-                animations.append(AnimationGroup(FadeOut(old_label), FadeIn(new_label)))
+                animations.append(AnimationGroup(FadeOut(oldval), FadeIn(newval)))
 
         if animate:
             if sequential:
@@ -93,33 +169,27 @@ class Grid(VGroup):
             else:
                 scene.play(*animations, run_time=delay)
 
-        for cell, old_label, new_label in cellgroup:
-            cell.remove(old_label)
-            cell.add(new_label)
+        for cell, newval in cellgroups:
+            self.cells[cell].submobjects[1] = newval
 
-            scene.remove(old_label)
-            scene.add(new_label)
+        scene.add(self)
 
     def highlight_cell(
         self,
         scene,
         *cells,
         colors=None,
-        fill=ORANGE,
-        animate=False,
-        sequential=False,
+        fill=GOLD_D,
+        animate=True,
+        sequential=True,
         delay=0.2,
     ):
-        if colors is None:
-            colors = [fill] * len(cells)
-        elif isinstance(colors, list):
-            colors += [fill] * (len(cells) - len(colors))
-        else:
-            colors = [colors] * len(cells)
+        colors = colors or []
+        colors += [fill] * (len(cells) - len(colors))
 
         animations = []
-        for (row, col), color in zip(cells, colors):
-            rect = self.get_cell_rect(row, col)
+        for cell, color in zip(cells, colors):
+            rect = self.get_cell_item(cell, item="rect")[0]
             if animate:
                 animations.append(rect.animate.set_fill(color))
             else:
@@ -132,78 +202,232 @@ class Grid(VGroup):
             else:
                 scene.play(*animations, run_time=delay)
 
+    def insert_cell(self, scene, pos, values=None, delay=1):
+        values = values or [" "]
+        cells = self.create_cells(values)
 
-class Array(Grid):
+        if pos == 0:
+            cells.next_to(self.get_cell_item(0, item="rect"), LEFT, buff=self.buff)
+        elif pos == self.len:
+            cells.next_to(
+                self.get_cell_item(pos - 1, item="rect"), RIGHT, buff=self.buff
+            )
+        else:
+            cells.next_to(
+                self.get_cell_item(pos - 1, item="rect"), RIGHT, buff=self.buff
+            )
+            scene.play(
+                self.get_cell_item(*range(pos, self.len)).animate.shift(
+                    RIGHT * self.cell_width * len(values)
+                )
+            )
+
+        scene.play(Write(cells), run_time=delay)
+
+        self.cells[pos:pos] = cells
+        self.data[pos:pos] = values
+        self.len += len(values)
+
+        if self.index:
+            self.toggle_indices(scene)
+            self.toggle_indices(scene)
+
+    def append_cell(self, scene, values=None, delay=1):
+        self.insert_cell(scene, pos=self.len, values=values, delay=delay)
+
+    def prepend_cell(self, scene, values=None, delay=1):
+        self.insert_cell(scene, pos=0, values=values, delay=delay)
+
+    def remove_cell(self, scene, *cells, delay=1):
+        cells = sorted(cells, reverse=True)
+
+        for cell in cells:
+            item = self.get_cell_item(cell)[0]
+            print(item[0])
+
+            scene.play(FadeOut(item))
+            scene.play(
+                self.get_cell_item(*range(cell + 1, self.len)).animate.shift(
+                    LEFT * self.cell_width
+                )
+            )
+
+            for mob in item:
+                scene.remove(mob)
+
+            self.cells.remove(self.cells[cell])
+            self.indices.remove(self.indices[cell])
+            del self.data[cell]
+            self.len -= 1
+
+        if self.index:
+            self.toggle_indices(scene)
+            self.toggle_indices(scene)
+
+    def swap_cell(self, scene, cell1, cell2, delay=1.5):
+        arcup = ArcBetweenPoints(
+            start=self.get_cell_item(cell1, item="rect").get_center(),
+            end=self.get_cell_item(cell2, item="rect").get_center(),
+            angle=-PI,
+        )
+        arcdown = ArcBetweenPoints(
+            start=self.get_cell_item(cell2, item="rect").get_center(),
+            end=self.get_cell_item(cell1, item="rect").get_center(),
+            angle=-PI,
+        )
+
+        l1 = self.get_cell_item(cell1, item="label")[0]
+        l2 = self.get_cell_item(cell2, item="label")[0]
+
+        scene.play(MoveAlongPath(l1, arcup), MoveAlongPath(l2, arcdown), run_time=delay)
+        self.update_cell(scene, cell1, cell2, labels=[l1.text, l2.text], animate=False)
+
+    def shift_cell(self, scene, start, end, to, sequential=True, delay=0.5):
+        end = end - 1 if start > end else end + 1
+        step = -1 if start > end else 1
+
+        srccells = range(start, end, step)
+        dstcells = range(to, to + len(srccells) * step, step)
+        cells = range(to, end, step)
+        labels = [self.get_label(cell).text for cell in srccells]
+
+        animations = []
+        for srccell, dstcell in zip(srccells, dstcells):
+            animations.append(
+                self.get_label(srccell).animate.move_to(
+                    self.get_rect(dstcell).get_center()
+                )
+            )
+
+        if sequential:
+            for anim in animations:
+                scene.play(anim, run_time=delay)
+        else:
+            scene.play(*animations, run_time=delay)
+
+        self.update_cell(scene, *cells, labels=labels, animate=False)
+
+    def swap_and_shift_cell(self, scene, swapfrom, swapto):
+        arc_angle = PI if swapfrom > swapto else -PI
+
+        arcup = ArcBetweenPoints(
+            start=self.get_rect(swapfrom).get_center(),
+            end=self.get_rect(swapto).get_center(),
+            angle=arc_angle,
+        )
+
+        swapto = swapto - 1 if swapfrom > swapto else swapto + 1
+        step = -1 if swapfrom > swapto else 1
+
+        cells = range(swapfrom, swapto, step)
+        srccells = range(swapfrom + step, swapto, step)
+        dstcells = range(swapfrom, swapfrom + len(srccells) * step, step)
+
+        animations = []
+        for srccell, dstcell in zip(srccells, dstcells):
+            animations.append(
+                self.get_label(srccell).animate.move_to(
+                    self.get_rect(dstcell).get_center()
+                )
+            )
+
+        scene.play(MoveAlongPath(self.get_label(swapfrom), arcup), *animations)
+
+        labels = [self.get_label(cell).text for cell in srccells]
+        labels.append(self.get_label(swapfrom).text)
+        self.update_cell(scene, *cells, labels=labels, animate=False)
+
+
+class BitArray(VGroup):
     def __init__(
         self,
-        cell_width=0.8,
+        integer,
+        bits=None,
+        cell_width=0.9,
         cell_height=0.7,
-        data=None,
-        fs=24,
-        index_ltr=True,
-        index_dir_up=False,
-        index_from=0,
-        index_step=1,
+        stroke_width=1,
+        index=True,
+        index_up=True,
+        fs=20,
+        buff=0,
         **kwargs,
     ):
-        self.data = data or [" "]
-        self.index_ltr = index_ltr
-        self.indices = VGroup()
-        self.array = VGroup()
+        super().__init__(**kwargs)
 
-        super().__init__(
-            width=cell_width * len(data),
-            height=cell_height,
-            data=[data],
-            fs=fs,
-            **kwargs,
+        self.integer = integer
+        self.bits = bits or len(format(integer, "b"))
+        self.data = list(format(self.integer, f"0{self.bits}b"))
+        self.fs = fs
+        self.buff = buff
+
+        self.cell_width = cell_width
+        self.cell_height = cell_height
+        self.stroke_width = stroke_width
+
+        self.index = index
+        self.index_up = UP if index_up else DOWN
+
+        self.cells = self.create_bits()
+        self.indices = self.create_indices()
+        self.bitarray = (
+            VGroup(self.cells, self.indices) if self.index else VGroup(self.cells)
         )
+        self.add(self.bitarray)
 
-        indices = range(index_from, index_from + len(data) * index_step, index_step)
-        indices = indices if index_ltr else reversed(indices)
-        index_dir_up = UP if index_dir_up else DOWN
-
-        for idx, index in enumerate(indices):
-            index_label = Text(str(index), font_size=fs * 0.7).next_to(
-                self.get_cell(0, idx), index_dir_up, buff=0.2
+    def create_bits(self):
+        bits = VGroup()
+        for bitdata in self.data:
+            rect = Rectangle(
+                width=self.cell_width,
+                height=self.cell_height,
+                color=BLACK,
+                fill_opacity=1,
+                stroke_color=WHITE,
+                stroke_width=self.stroke_width,
             )
-            self.indices.add(index_label)
+            label = Text(str(bitdata), font_size=self.fs, z_index=1).move_to(
+                rect.get_center()
+            )
+            bits.add(VGroup(rect, label))
+        return bits.arrange(RIGHT, buff=self.buff)
 
-        self.array.add(self.grid, self.indices)
-        self.add(self.array)
+    def create_indices(self):
+        indices = VGroup()
+        for idx, index in enumerate(range(self.bits - 1, -1, -1)):
+            indices.add(
+                Text(str(index), font_size=self.fs * 0.7).next_to(
+                    self.cells[idx], self.index_up
+                )
+            )
+        return indices
 
-    def get_bit(self, bit):
-        bit = bit if self.index_ltr else (self.cols - 1 - bit)
-        return VGroup(self.get_cell(0, bit), self.indices[bit])
+    def toggle_indices(self, scene):
+        self.index = not self.index
+        for mob in self.indices:
+            scene.remove(mob)
+        if self.index:
+            scene.add(self.indices)
 
-    def get_bit_rect(self, bit):
-        return self.get_bit(bit)[0][0]
+    def get_group(self, bit):
+        bit = self.bits - bit - 1
+        if self.index:
+            return VGroup(self.cells[bit], self.indices[bit])
+        else:
+            return VGroup(self.cells[bit])
 
-    def get_bit_label(self, bit):
-        return self.get_bit(bit)[0][1]
+    def get_cell(self, bit):
+        return self.get_group(bit)[0]
 
-    def update_bit(
-        self,
-        scene,
-        *bits,
-        labels=None,
-        fill=" ",
-        animate=True,
-        sequential=True,
-        delay=0.2,
-    ):
-        cells = [(0, bit if self.index_ltr else (self.cols - 1 - bit)) for bit in bits]
-        self.update_cell(
-            scene,
-            *cells,
-            labels=labels,
-            fill=fill,
-            animate=animate,
-            sequential=sequential,
-            delay=delay,
-        )
+    def get_rect(self, bit):
+        return self.get_group(bit)[0][0]
 
-    def highlight_bit(
+    def get_label(self, bit):
+        return self.get_group(bit)[0][1]
+
+    def get_index(self, bit):
+        return self.get_group(bit)[1]
+
+    def highlight_cell(
         self,
         scene,
         *bits,
@@ -213,102 +437,95 @@ class Array(Grid):
         sequential=True,
         delay=0.2,
     ):
-        cells = [(0, bit if self.index_ltr else (self.cols - 1 - bit)) for bit in bits]
-        self.highlight_cell(
-            scene,
-            *cells,
-            colors=colors,
-            fill=fill,
-            animate=animate,
-            sequential=sequential,
-            delay=delay,
-        )
-
-    def swap_bit(self, scene, bit1, bit2, delay=1.5):
-        arcUp = ArcBetweenPoints(
-            start=self.get_bit_rect(bit1).get_center(),
-            end=self.get_bit_rect(bit2).get_center(),
-            angle=-PI,
-        )
-        arcDown = ArcBetweenPoints(
-            start=self.get_bit_rect(bit2).get_center(),
-            end=self.get_bit_rect(bit1).get_center(),
-            angle=-PI,
-        )
-
-        l1 = (
-            self.get_bit_label(bit1)
-            .copy()
-            .move_to(self.get_bit_rect(bit1).get_center())
-        )
-        l2 = (
-            self.get_bit_label(bit2)
-            .copy()
-            .move_to(self.get_bit_rect(bit2).get_center())
-        )
-
-        self.add(l1, l2)
-        self.update_bit(scene, bit1, bit2, animate=False)
-
-        scene.play(
-            MoveAlongPath(l1, arcUp),
-            MoveAlongPath(l2, arcDown),
-            run_time=delay,
-        )
-
-        scene.remove(l1, l2)
-        self.update_bit(scene, bit1, bit2, labels=[l2.text, l1.text], animate=False)
-
-    def shift_bit(self, scene, start, end, to, sequential=True, delay=0.2):
-        end = end - 1 if start > end else end + 1
-        step = -1 if start > end else 1
-
-        srcbits = list(range(start, end, step))
-        dstbits = list(range(to, to + len(srcbits) * step, step))
-        labels = [self.get_bit_label(bit).text for bit in srcbits]
+        colors = colors or []
+        colors += [fill] * (len(bits) - len(colors))
 
         animations = []
-        for srcbit, dstbit in zip(srcbits, dstbits):
-            animations.append(
-                self.get_bit_label(srcbit).animate.move_to(
-                    self.get_bit_rect(dstbit).get_center()
-                )
-            )
-        if sequential:
+        for bit, color in zip(bits, colors):
+            if animate:
+                animations.append(self.get_rect(bit).animate.set_fill(color))
+            else:
+                self.get_rect(bit).set_fill(color)
+
+        if animate and sequential:
             for anim in animations:
                 scene.play(anim, run_time=delay)
-        else:
+        elif animate and not sequential:
             scene.play(*animations, run_time=delay)
 
-        self.update_bit(scene, *srcbits, animate=False)
-        self.update_bit(scene, *dstbits, labels=labels, animate=False)
-
-    def swap_and_shift_bit(self, scene, swapfrom, swapto):
-        arc_angle = PI if swapfrom > swapto else -PI
-
-        arcup = ArcBetweenPoints(
-            start=self.get_bit_rect(swapfrom).get_center(),
-            end=self.get_bit_rect(swapto).get_center(),
-            angle=arc_angle,
-        )
-
-        swapto = swapto - 1 if swapfrom > swapto else swapto + 1
-        step = -1 if swapfrom > swapto else 1
-
-        bits = range(swapfrom, swapto, step)
-        srcbits = range(swapfrom + step, swapto, step)
-        dstbits = range(swapfrom, swapfrom + len(srcbits) * step, step)
+    def update_cell(
+        self,
+        scene,
+        *bits,
+        labels=None,
+        fill="0",
+        animate=True,
+        sequential=True,
+        delay=0.2,
+    ):
+        labels = labels or []
+        labels += [fill] * (len(bits) - len(labels))
 
         animations = []
-        for srcbit, dstbit in zip(srcbits, dstbits):
-            animations.append(
-                self.get_bit_label(srcbit).animate.move_to(
-                    self.get_bit_rect(dstbit).get_center()
-                )
+        bitgroups = []
+        for bit, label in zip(bits, labels):
+            oldval = self.get_label(bit)
+            newval = Text(str(label), font_size=self.fs, z_index=1).move_to(
+                self.get_rect(bit).get_center()
             )
 
-        scene.play(MoveAlongPath(self.get_bit_label(swapfrom), arcup), *animations)
+            bitgroups.append((bit, newval))
+            if animate:
+                animations.append(AnimationGroup(FadeOut(oldval), FadeIn(newval)))
 
-        labels = [self.get_bit_label(bit).text for bit in srcbits]
-        labels.append(self.get_bit_label(swapfrom).text)
-        self.update_bit(scene, *bits, labels=labels, animate=False)
+        if animate and sequential:
+            for anim in animations:
+                scene.play(anim, run_time=delay)
+        elif animate and not sequential:
+            scene.play(*animations, run_time=delay)
+
+        for bit, newval in bitgroups:
+            bit = self.bits - bit - 1
+            self.cells[bit].submobjects[1] = newval
+
+    def left_shift(self, scene, n=1):
+        self.integer <<= n
+        self.data = self.data[n:] + [0] * n
+
+        cells = VGroup(*[self.get_label(idx) for idx in range(0, self.bits)])
+        scene.play(cells.animate.shift(LEFT * n * self.cell_width))
+        labels = [self.get_label(idx).text for idx in range(self.bits - n - 1, -1, -1)]
+        self.update_cell(scene, *range(self.bits - 1, -1, -1), labels=labels, fill="0")
+
+    def right_shift(self, scene, n=1):
+        self.integer >>= n
+        self.data = [0] * n + self.data[: self.bits - n]
+
+        cells = VGroup(*[self.get_label(idx) for idx in range(0, self.bits)])
+        scene.play(cells.animate.shift(RIGHT * n * self.cell_width))
+        labels = [self.get_label(idx).text for idx in range(n, self.bits)]
+        self.update_cell(scene, *range(0, self.bits), labels=labels, fill="0")
+
+    def bitwise_and(self, scene, n, delay=1.8):
+        self.integer &= n
+        self.data = list(format(self.integer, f"0{self.bits}b"))
+        cells = self.create_bits()
+        scene.play(Transform(self.cells, cells), run_time=delay)
+
+    def bitwise_or(self, scene, n, delay=1.8):
+        self.integer |= n
+        self.data = list(format(self.integer, f"0{self.bits}b"))
+        cells = self.create_bits()
+        scene.play(Transform(self.cells, cells), run_time=delay)
+
+    def bitwise_xor(self, scene, n, delay=1.8):
+        self.integer ^= n
+        self.data = list(format(self.integer, f"0{self.bits}b"))
+        cells = self.create_bits()
+        scene.play(Transform(self.cells, cells), run_time=delay)
+
+    def bitwise_not(self, scene, delay=1.8):
+        self.integer = ~self.integer & ((1 << self.bits) - 1)
+        self.data = list(format(self.integer, f"0{self.bits}b"))
+        cells = self.create_bits()
+        scene.play(Transform(self.cells, cells), run_time=delay)
