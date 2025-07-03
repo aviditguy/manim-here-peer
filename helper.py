@@ -8,10 +8,7 @@ class Array(VGroup):
         dir_right=True,
         cell_width=0.9,
         cell_height=0.7,
-        cell_color=BLACK,
-        cell_opacity=1,
-        cell_stroke_color=WHITE,
-        cell_stroke_width=1,
+        stroke_width=1,
         index=True,
         index_up=True,
         index_from=0,
@@ -30,10 +27,7 @@ class Array(VGroup):
 
         self.cell_width = cell_width
         self.cell_height = cell_height
-        self.cell_color = cell_color
-        self.cell_opacity = cell_opacity
-        self.cell_stroke_color = cell_stroke_color
-        self.cell_stroke_width = cell_stroke_width
+        self.stroke_width = stroke_width
 
         self.index = index
         self.index_from = index_from
@@ -62,10 +56,10 @@ class Array(VGroup):
             rect = Rectangle(
                 width=self.cell_width,
                 height=self.cell_height,
-                color=self.cell_color,
-                fill_opacity=self.cell_opacity,
-                stroke_color=self.cell_stroke_color,
-                stroke_width=self.cell_stroke_width,
+                color=BLACK,
+                fill_opacity=1,
+                stroke_color=WHITE,
+                stroke_width=self.stroke_width,
             )
             label = Text(str(value), font_size=self.fs, z_index=1).move_to(
                 rect.get_center()
@@ -100,42 +94,24 @@ class Array(VGroup):
             for mob in self.indices:
                 scene.remove(mob)
 
-    def get_cell_item(self, *cells, item=None):
-        if item not in {"group", "cell", "rect", "label", "index"}:
-            item = "group"
-
-        if item == "group" and not self.index:
-            item = "cell"
-
-        if item == "group":
-            return VGroup(
-                *(VGroup(self.cells[cell], self.indices[cell]) for cell in cells)
-            )
-        elif item == "cell":
-            return VGroup(*[self.cells[cell] for cell in cells])
-        elif item == "rect":
-            return VGroup(*[self.cells[cell][0] for cell in cells])
-        elif item == "label":
-            return VGroup(*[self.cells[cell][1] for cell in cells])
-        elif item == "index" and self.index:
-            return VGroup(*[self.indices[cell] for cell in cells])
-
-        return VGroup()
-
     def get_group(self, cell):
-        return self.get_cell_item(cell)[0]
+        return (
+            VGroup(self.cells[cell], self.indices[cell])
+            if self.index
+            else VGroup(self.cells[cell])
+        )
 
     def get_cell(self, cell):
-        return self.get_cell_item(cell, item="cell")[0]
+        return self.get_group(cell)[0]
 
     def get_rect(self, cell):
-        return self.get_cell_item(cell, item="rect")[0]
+        return self.get_group(cell)[0][0]
 
     def get_label(self, cell):
-        return self.get_cell_item(cell, item="label")[0]
+        return self.get_group(cell)[0][1]
 
     def get_index(self, cell):
-        return self.get_cell_item(cell, item="index")[0]
+        return self.get_group(cell)[1] if self.index else VGroup()
 
     def update_cell(
         self,
@@ -157,6 +133,8 @@ class Array(VGroup):
             newval = Text(str(label), font_size=self.fs, z_index=1).move_to(
                 self.get_rect(cell).get_center()
             )
+
+            self.data[cell] = label
 
             cellgroups.append((cell, newval))
             if animate:
@@ -189,7 +167,7 @@ class Array(VGroup):
 
         animations = []
         for cell, color in zip(cells, colors):
-            rect = self.get_cell_item(cell, item="rect")[0]
+            rect = self.get_rect(cell)[0]
             if animate:
                 animations.append(rect.animate.set_fill(color))
             else:
@@ -207,20 +185,15 @@ class Array(VGroup):
         cells = self.create_cells(values)
 
         if pos == 0:
-            cells.next_to(self.get_cell_item(0, item="rect"), LEFT, buff=self.buff)
+            cells.next_to(self.get_rect(0), LEFT, buff=self.buff)
         elif pos == self.len:
-            cells.next_to(
-                self.get_cell_item(pos - 1, item="rect"), RIGHT, buff=self.buff
-            )
+            cells.next_to(self.get_rect(pos - 1), RIGHT, buff=self.buff)
         else:
             cells.next_to(
                 self.get_cell_item(pos - 1, item="rect"), RIGHT, buff=self.buff
             )
-            scene.play(
-                self.get_cell_item(*range(pos, self.len)).animate.shift(
-                    RIGHT * self.cell_width * len(values)
-                )
-            )
+            cellgrp = VGroup(self.get_group(cell) for cell in range(pos, self.len))
+            scene.play(cellgrp.animate.shift(RIGHT * self.cell_width * len(values)))
 
         scene.play(Write(cells), run_time=delay)
 
@@ -242,15 +215,14 @@ class Array(VGroup):
         cells = sorted(cells, reverse=True)
 
         for cell in cells:
-            item = self.get_cell_item(cell)[0]
-            print(item[0])
+            item = self.get_group(cell)
 
             scene.play(FadeOut(item))
-            scene.play(
-                self.get_cell_item(*range(cell + 1, self.len)).animate.shift(
-                    LEFT * self.cell_width
-                )
+
+            cellitems = VGroup(
+                self.get_group(citm) for citm in range(cell + 1, self.len)
             )
+            scene.play(cellitems.animate.shift(LEFT * self.cell_width))
 
             for mob in item:
                 scene.remove(mob)
@@ -266,21 +238,21 @@ class Array(VGroup):
 
     def swap_cell(self, scene, cell1, cell2, delay=1.5):
         arcup = ArcBetweenPoints(
-            start=self.get_cell_item(cell1, item="rect").get_center(),
-            end=self.get_cell_item(cell2, item="rect").get_center(),
+            start=self.get_rect(cell1).get_center(),
+            end=self.get_rect(cell2).get_center(),
             angle=-PI,
         )
         arcdown = ArcBetweenPoints(
-            start=self.get_cell_item(cell2, item="rect").get_center(),
-            end=self.get_cell_item(cell1, item="rect").get_center(),
+            start=self.get_rect(cell2).get_center(),
+            end=self.get_rect(cell1).get_center(),
             angle=-PI,
         )
 
-        l1 = self.get_cell_item(cell1, item="label")[0]
-        l2 = self.get_cell_item(cell2, item="label")[0]
+        l1 = self.get_label(cell1)
+        l2 = self.get_label(cell2)
 
         scene.play(MoveAlongPath(l1, arcup), MoveAlongPath(l2, arcdown), run_time=delay)
-        self.update_cell(scene, cell1, cell2, labels=[l1.text, l2.text], animate=False)
+        self.update_cell(scene, cell1, cell2, labels=[l2.text, l1.text], animate=False)
 
     def shift_cell(self, scene, start, end, to, sequential=True, delay=0.5):
         end = end - 1 if start > end else end + 1
@@ -336,6 +308,7 @@ class Array(VGroup):
         labels = [self.get_label(cell).text for cell in srccells]
         labels.append(self.get_label(swapfrom).text)
         self.update_cell(scene, *cells, labels=labels, animate=False)
+
 
 
 class BitArray(VGroup):
