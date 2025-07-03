@@ -175,3 +175,158 @@ class DecimalToHex(Scene):
         )
         self.play(Write(res))
         self.wait(2)
+
+
+class BinaryToDecimal(Scene):
+    def construct(self):
+        label = MathTex(r"(1100100.01011100)_{{{2}}}").scale(0.8).shift(UP * 1.5)
+        warr = (
+            Array(data=list("1100100"), cell_width=0.7, index_from=6, index_step=-1)
+            .to_edge(LEFT)
+            .shift(RIGHT * 0.4)
+        )
+        farr = (
+            Array(data=list("01011100"), cell_width=0.7, index_from=-1, index_step=-1)
+            .to_edge(RIGHT)
+            .shift(LEFT)
+        )
+        self.add(label, warr, farr)
+        self.wait(1)
+
+        warr.highlight_cell(self, 0, 1, 4, fill=RED_E)
+        self.wait(1)
+        weqs = (
+            VGroup(MathTex(r"= 1 \cdot 2^6 + 2^5 + 2^2"), MathTex("= 100"))
+            .scale(0.7)
+            .arrange(DOWN, aligned_edge=LEFT)
+            .next_to(warr, DOWN, buff=0.4)
+        )
+        self.play(Write(weqs))
+        self.wait(1)
+
+        farr.highlight_cell(self, 1, 3, 4, 5, fill=BLUE_E)
+        self.wait(1)
+        feqs = (
+            VGroup(
+                MathTex(r"= 1 \cdot 2^{-2} + 2^{-4} + 2^{-5} + 2^{-6}"),
+                MathTex(r"\approx 0.36"),
+            )
+            .scale(0.7)
+            .arrange(DOWN, aligned_edge=LEFT)
+            .next_to(farr, DOWN, buff=0.4)
+        )
+        self.play(Write(feqs))
+        self.wait(1)
+
+        self.play(label.animate.shift(LEFT * 2))
+        res = MathTex("100.36").scale(0.8).next_to(label, RIGHT, buff=1)
+        self.play(Write(res))
+        self.wait(2)
+
+
+class BinaryToHex(Scene):
+    def construct(self):
+        label = MathTex(r"(1100100.01011100)_{{{2}}}").scale(0.8).shift(UP * 1.5)
+        warr = (
+            Array(data=list("1100100"), cell_width=0.6, index_from=6, index_step=-1)
+            .to_edge(LEFT)
+            .shift(RIGHT)
+        )
+        farr = (
+            Array(data=list("01011100"), cell_width=0.6, index_from=-1, index_step=-1)
+            .to_edge(RIGHT)
+            .shift(LEFT)
+        )
+        self.add(label, warr, farr)
+        self.wait(1)
+
+        arrright = Arrow(
+            start=farr.get_left(),
+            end=farr.get_right(),
+            tip_length=0.2,
+            stroke_width=2,
+            buff=0,
+        ).next_to(farr, UP, buff=0.1)
+        self.play(GrowArrow(arrright))
+        self.wait(1)
+
+        arrleft = Arrow(
+            start=warr.get_right(),
+            end=warr.get_left(),
+            tip_length=0.2,
+            stroke_width=2,
+            buff=0,
+        ).next_to(warr, UP, buff=0.1)
+        self.play(GrowArrow(arrleft))
+        self.wait(1)
+
+        fl1 = MathTex("5").scale(0.7).next_to(farr, DOWN, buff=0.3).shift(LEFT * 1.2)
+        fl2 = (
+            MathTex(r"\text{12(C)}")
+            .scale(0.7)
+            .next_to(farr, DOWN, buff=0.3)
+            .shift(RIGHT * 1.2)
+        )
+        fres = (
+            MathTex(r"\text{(5C)}_{{{16}}}")
+            .scale(0.7)
+            .next_to(farr, DOWN, buff=0.3)
+            .shift(RIGHT * 0.2)
+        )
+
+        farr.highlight_cell(self, 0, 1, 2, 3, fill=RED_E)
+        self.play(Write(fl1))
+        self.wait(0.5)
+        farr.highlight_cell(self, 4, 5, 6, 7, fill=BLUE_E)
+        self.play(Write(fl2))
+        self.wait(0.5)
+        self.play(ReplacementTransform(VGroup(fl1, fl2), fres))
+        self.wait(1)
+
+        warr.highlight_cell(self, 6, 5, 4, 3, fill=BLUE_E)
+        warr.highlight_cell(self, 2, 1, 0, fill=RED_E)
+        self.wait(1)
+        warr.prepend_cell(self, values=[0])
+        warr.highlight_cell(self, 0, fill=RED_E)
+        self.wait(1)
+
+        wl1 = MathTex("6").scale(0.7).next_to(warr, DOWN, buff=0.3).shift(LEFT * 1.2)
+        wl2 = MathTex("4").scale(0.7).next_to(warr, DOWN, buff=0.3).shift(RIGHT * 1.2)
+        wres = MathTex(r"(64)_{{{16}}}").scale(0.7).next_to(warr, DOWN, buff=0.3)
+        self.play(Write(wl1), Write(wl2))
+        self.wait(0.5)
+        self.play(ReplacementTransform(VGroup(wl1, wl2), wres))
+        self.wait(1)
+
+        self.play(label.animate.shift(LEFT * 2))
+        res = (
+            MathTex(r"\text{(64.5C)}_{{{16}}}").scale(0.8).next_to(label, RIGHT, buff=1)
+        )
+        self.play(Write(res))
+        self.wait(2)
+
+
+class HexToBinary(Scene):
+    def construct(self):
+        label = MathTex(r"\text{(64.5C)}_{{{16}}}").scale(0.8).shift(UP * 1.1)
+        arr = Array(data=list("64.5C"), cell_width=1.5, stroke_width=0, index=False)
+        self.add(label, arr)
+        self.wait(1)
+
+        b = VGroup(
+            MathTex("0110").scale(0.7).next_to(arr.get_cell(0), DOWN, buff=0.4),
+            MathTex("0100").scale(0.7).next_to(arr.get_cell(1), DOWN, buff=0.4),
+            MathTex("0101").scale(0.7).next_to(arr.get_cell(3), DOWN, buff=0.4),
+            MathTex("1100").scale(0.7).next_to(arr.get_cell(4), DOWN, buff=0.4),
+        )
+        self.play(Write(b), run_time=3)
+        self.wait(1)
+
+        self.play(label.animate.shift(LEFT * 2))
+        res = (
+            MathTex("(1100100.01011100)_{{{2}}}")
+            .scale(0.8)
+            .next_to(label, RIGHT, buff=1)
+        )
+        self.play(Write(res))
+        self.wait(2)
