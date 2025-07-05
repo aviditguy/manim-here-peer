@@ -267,3 +267,221 @@ class HexadecimalToBinary(Scene):
         )
 
         self.add(arr, b)
+
+
+class BinaryAddition(Scene):
+    def construct(self):
+        arr1 = Array(
+            data=[22, " ", " ", 1, 0, 1, 1, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        )
+        arr2 = Array(
+            data=[10, " ", " ", 0, 1, 0, 1, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(arr1, DOWN, buff=0)
+
+        arr3 = Array(
+            data=[32, " ", 1, 0, 0, 0, 0, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(arr2, DOWN, buff=0, aligned_edge=RIGHT)
+
+        sym = MathTex("+").scale(0.7).next_to(arr2, LEFT, buff=0.5)
+
+        line = Line(start=arr2.get_left(), end=arr2.get_right(), buff=0).next_to(
+            arr2, DOWN, buff=0
+        )
+
+        carry = VGroup(
+            MathTex("1")
+            .scale(0.4)
+            .set_color(RED)
+            .next_to(arr1.get_cell(5), UP, buff=0),
+            MathTex("1")
+            .scale(0.4)
+            .set_color(RED)
+            .next_to(arr1.get_cell(4), UP, buff=0),
+            MathTex("1")
+            .scale(0.4)
+            .set_color(RED)
+            .next_to(arr1.get_cell(3), UP, buff=0),
+            MathTex("1")
+            .scale(0.4)
+            .set_color(RED)
+            .next_to(arr1.get_cell(2), UP, buff=0),
+        )
+
+        self.add(arr1, arr2, arr3, sym, line, carry)
+
+
+class BinarySubtraction(Scene):
+    def construct(self):
+        arr1 = Array(
+            data=[22, " ", " ", 1, 0, 1, 1, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        )
+        arr2 = Array(
+            data=[10, " ", " ", 0, 1, 0, 1, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(arr1, DOWN, buff=0)
+
+        arr3 = Array(
+            data=[12, " ", " ", 0, 1, 1, 0, 0],
+            cell_width=0.6,
+            cell_height=0.5,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(arr2, DOWN, buff=0, aligned_edge=RIGHT)
+
+        sym = MathTex("-").scale(0.7).next_to(arr2, LEFT, buff=0.5)
+
+        line = Line(start=arr2.get_left(), end=arr2.get_right(), buff=0).next_to(
+            arr2, DOWN, buff=0
+        )
+
+        slash = Line(
+            start=arr1.get_cell(3).get_corner(UR),
+            end=arr1.get_cell(3).get_corner(DL),
+            buff=0,
+            color=RED,
+            stroke_width=1,
+        ).scale(0.5)
+
+        carry = VGroup(
+            MathTex("0")
+            .scale(0.5)
+            .set_color(RED)
+            .next_to(arr1.get_cell(3), UP, buff=0),
+            MathTex("10")
+            .scale(0.5)
+            .set_color(RED)
+            .next_to(arr1.get_cell(4), UP, buff=0),
+        )
+
+        self.add(arr1, arr2, arr3, sym, line, slash, carry)
+
+
+class BinaryMultiplication(Scene):
+    def construct(self):
+        arr1 = Array(
+            data=[5, " ", " ", " ", 1, 0, 1],
+            cell_width=0.6,
+            cell_height=0.4,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        )
+
+        arr2 = Array(
+            data=[4, " ", " ", " ", 1, 0, 0],
+            cell_width=0.6,
+            cell_height=0.4,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(arr1, DOWN, buff=0)
+
+        products = (
+            VGroup(
+                Array(
+                    data=[" ", " ", " ", " ", 0, 0, 0],
+                    cell_width=0.6,
+                    cell_height=0.4,
+                    stroke_width=0,
+                    index=False,
+                    fs=18,
+                ),
+                Array(
+                    data=[" ", " ", " ", 0, 0, 0, 0],
+                    cell_width=0.6,
+                    cell_height=0.4,
+                    stroke_width=0,
+                    index=False,
+                    fs=18,
+                ),
+                Array(
+                    data=[" ", " ", 1, 0, 1, 0, 0],
+                    cell_width=0.6,
+                    cell_height=0.4,
+                    stroke_width=0,
+                    index=False,
+                    fs=18,
+                ),
+            )
+            .arrange(DOWN, buff=0)
+            .next_to(arr2, DOWN, buff=0.1)
+        )
+        products[1].get_label(6).set_color(RED_E)
+        products[2].get_label(5).set_color(RED_E)
+        products[2].get_label(6).set_color(RED_E)
+
+        res = Array(
+            data=[20, " ", 1, 0, 1, 0, 0],
+            cell_width=0.6,
+            cell_height=0.4,
+            stroke_width=0,
+            index=False,
+            fs=18,
+        ).next_to(products, DOWN, buff=0.1)
+
+
+class BinaryDivision(Scene):
+    def construct(self):
+
+        hline = Line(start=[0, 0, 0], end=[0, 0.5, 0], stroke_width=2)
+        vline = Line(start=[0, 0.5, 0], end=[1.2, 0.5, 0], stroke_width=2)
+
+        q1 = MathTex("100").scale(0.6).next_to(hline, LEFT, buff=0.2)
+        q2 = MathTex("10111").scale(0.6).next_to(hline, RIGHT, buff=0.2)
+
+        eq = (
+            MathTex(r"\frac{23}{4} = 5 \cdot \frac{3}{4}")
+            .scale(0.6)
+            .next_to(q1, LEFT, buff=1)
+        )
+
+        quo = (
+            MathTex(r"101 \quad \longrightarrow 5")
+            .scale(0.6)
+            .next_to(q2, UP, aligned_edge=LEFT, buff=0.3)
+        )
+
+        p1 = MathTex("100").scale(0.6).next_to(q2, DOWN, aligned_edge=LEFT)
+        l1 = (
+            vline.copy()
+            .set_stroke_width(1)
+            .scale(0.6)
+            .next_to(p1, DOWN, buff=0.1)
+            .shift(RIGHT * 0.2)
+        )
+
+        p2 = MathTex("111").scale(0.6).next_to(p1, DOWN).shift(RIGHT * 0.35)
+        p3 = MathTex("100").scale(0.6).next_to(p2, DOWN)
+        l2 = vline.copy().set_stroke_width(1).scale(0.4).next_to(p3, DOWN, buff=0.1)
+        p4 = (
+            MathTex(r"011 \quad \longrightarrow \text{remainder} = 3")
+            .scale(0.6)
+            .next_to(p3, DOWN, aligned_edge=LEFT)
+        )
+
+        self.add(hline, vline, eq, q1, q2, quo, p1, l1, p2, p3, l2, p4)
